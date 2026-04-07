@@ -17,6 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Import Routes
+app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/auth', require('./routes/authRoute'));
 app.use('/api/jobs', require('./routes/jobsRoute'));
 

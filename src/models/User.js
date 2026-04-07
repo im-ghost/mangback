@@ -10,7 +10,6 @@ const userSchema = new mongoose.Schema({
   googleId: String,
   facebookId: String,
   
-  // The Cloud URL we talked about
   resumeUrl: { type: String, default: "" },
   
   // Verification for OTP
