@@ -72,7 +72,7 @@ exports.updateUser = async (req, res) =>{
     res.status(error.status).json({message: error.message})
   }
 }
-exports.deleteUser = async (req,res){
+exports.deleteUser = async (req,res)=>{
   const { email, password } = req.body;
 
   try {
