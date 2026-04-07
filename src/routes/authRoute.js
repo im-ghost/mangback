@@ -8,7 +8,5 @@ router.post('/login', loginUser);
 router.delete('/:id', protect, deleteUser);
 router.put('/:id', protect, updateUser);
 
-//router.post('/send-otp', sendOTP);
-//router.post('/verify-otp', verifyOTP);
 
 module.exports = router;

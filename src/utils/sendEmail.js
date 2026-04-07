@@ -6,17 +6,17 @@ const sendEmail = async (options) => {
     service: 'Gmail',
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // Use an "App Password" from Google
+      pass: process.env.EMAIL_PASS,
     },
   });
 
   // 2. Define email options
   const mailOptions = {
-    from: `Disability Job App <${process.env.EMAIL_USER}>`,
+    from: `MANG MANG <${process.env.EMAIL_USER}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
-    // html: `<b>${options.message}</b>` // You can use HTML for better design
+    html: `<b>${options.message}</b>` 
   };
 
   // 3. Send the email

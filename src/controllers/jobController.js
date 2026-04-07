@@ -1,4 +1,6 @@
 const Job = require('../models/Job');
+const Application = require('../models/Application');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Create a new job
 // @route   POST /api/jobs
@@ -90,7 +92,6 @@ exports.updateJob = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-const Application = require('../models/Application');
 
 // @desc    Apply for a job
 // @route   POST /api/jobs/:id/apply
@@ -161,18 +162,7 @@ exports.reviewApplication = async (req, res) => {
     application.status = status || application.status;
     application.accommodationNotes = accommodationNotes || application.accommodationNotes;
 
-    await application.save();
-
-    res.json({ message: 'Application updated successfully', application });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-const sendEmail = require('../utils/sendEmail');
-
-exports.reviewApplication = async (req, res) => {
-  // ... existing logic to find and update application ...
-
+    
   // Notify the candidate if they are shortlisted
   if (status === 'shortlisted') {
     try {
@@ -187,6 +177,12 @@ exports.reviewApplication = async (req, res) => {
   }
 
   res.json({ message: 'Application updated and candidate notified', application });
+  await application.save();
+
+    res.json({ message: 'Application updated successfully', application });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 exports.getPersonalizedFeed = async (req, res) => {
   try {
@@ -200,21 +196,10 @@ exports.getPersonalizedFeed = async (req, res) => {
         .sort('-createdAt')
         .limit(20);
 
-      // (Optional) Re-use the matching logic we built earlier to sort by inclusion score
-      const personalizedJobs = jobs.map(job => {
-        let matchCount = 0;
-        user.accommodationNeeds.forEach(need => {
-          if (job.accessibilityFeatures.includes(need)) matchCount++;
-        });
-        const matchPercentage = user.accommodationNeeds.length > 0 
-          ? (matchCount / user.accommodationNeeds.length) * 100 : 0;
-        return { ...job._doc, matchPercentage };
-      });
-
       return res.json({
         type: 'Candidate Feed',
         message: `Showing latest jobs in ${user.field}`,
-        data: personalizedJobs.sort((a, b) => b.matchPercentage - a.matchPercentage)
+        data: jobs
       });
     }
 
