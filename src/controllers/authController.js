@@ -5,7 +5,6 @@ const axios = require('axios'); // For calling the Termii SMS API
 
 // @desc    Register a new user (Email/Password)
 exports.registerUser = async (req, res) => {
-  console.log(req.body);
   const { fullName, email, password, role } = req.body;
 
   try {
@@ -42,7 +41,7 @@ exports.loginUser = async (req, res) => {
     
     // Compare the entered password with the hashed password in the DB
     if (user && (await bcrypt.compare(password, user.password))) {
-      res.json({
+      res.status(201).json({
         _id: user._id,
         fullName: user.fullName,
         token: generateToken(user._id),
@@ -54,6 +53,42 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.updateUser = async (req, res) =>{
+  const { email } = req.body;
+  try{
+    const user = await User.findOne({ email });
+    if(user){
+        const updatedUser = await User.findByIdAndUpdate(
+                 req.params.id,
+                 req.body,
+                 { new: true, runValidators: true }
+               );
+           
+               res.json(updatedUser);
+    } else{
+      res.status(401).json({ message: 'Invalid email' });
+    }
+  }catch(error){
+    res.status(error.status).json({message: error.message})
+  }
+}
+exports.deleteUser = async (req,res){
+  const { email, password } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    
+    // Compare the entered password with the hashed password in the DB
+    if (user && (await bcrypt.compare(password, user.password))) {
+      await user.deleteOne();
+      res.json({message : " Deleted"})
+    } else {
+      res.status(401).json({ message: 'Invalid email or password' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
 // @desc    Send OTP to Phone (Using Termii for Nigeria)
 /**exports.sendOTP = async (req, res) => {
   const { phone } = req.body;

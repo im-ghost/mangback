@@ -1,10 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const connectDB = require('./config/db'); // Import the function
-// Source - https://stackoverflow.com/a/79875907
-// Posted by Sudarsan Sarkar, modified by community. See post 'Timeline' for change history
-// Retrieved 2026-04-06, License - CC BY-SA 4.0
+const connectDB = require('./config/db');
 
 const dns = require("node:dns/promises");
 
