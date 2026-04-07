@@ -117,3 +117,32 @@ exports.getJobApplicants = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// @desc    Review/Update an application (Employer only)
+// @route   PUT /api/applications/:id/review
+exports.reviewApplication = async (req, res) => {
+  try {
+    const { status, accommodationNotes } = req.body;
+    
+    // 1. Find the application and "Populate" the job details to check the owner
+    const application = await Application.findById(req.params.id).populate('job');
+
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    // 2. Security Check: Is the logged-in user the one who posted the job?
+    if (application.job.postedBy.toString() !== req.user.id.toString()) {
+      return res.status(401).json({ message: 'Not authorized to review this application' });
+    }
+
+    // 3. Update the application
+    application.status = status || application.status;
+    application.accommodationNotes = accommodationNotes || application.accommodationNotes;
+
+    await application.save();
+
+    res.json({ message: 'Application updated successfully', application });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
