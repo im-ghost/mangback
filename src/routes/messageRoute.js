@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 const { sendMessage, getInbox, getChatHistory } = require('../controllers/messageController');
 
 router.get('/inbox', protect, getInbox);

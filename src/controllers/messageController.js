@@ -1,5 +1,25 @@
-// @desc    Get all users I have a conversation with
-// @route   GET /api/messages/inbox
+const Message = require('../models/Message');
+
+// Send a message
+exports.sendMessage = async (req, res) => {
+  try {
+    const { receiver, content, jobContext } = req.body;
+    const sender = req.user.id;
+
+    const message = await Message.create({
+      sender,
+      receiver,
+      content,
+      jobContext
+    });
+
+    res.status(201).json(message);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get all users I have a conversation with
 exports.getInbox = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -34,7 +54,7 @@ exports.getInbox = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-// @route   GET /api/messages/:partnerId
+// Get chat history with a specific user
 exports.getChatHistory = async (req, res) => {
   try {
     const chat = await Message.find({

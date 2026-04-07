@@ -25,7 +25,6 @@ verificationStatus: {
   default: 'unverified'
 },
 cacDocumentUrl: { type: String }, // Link to their CAC PDF on Supabase
-isInclusiveCertified: { type: Boolean, default: false }
   // Add to userSchema
 ,field: {
   type: String,

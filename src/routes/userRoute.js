@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { uploadResume } = require('../controllers/userController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 
 // Configure Multer for PDF-only memory storage
 const upload = multer({

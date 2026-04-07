@@ -1,9 +1,9 @@
 const Job = require('../models/Job');
 const Application = require('../models/Application');
+const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 
-// @desc    Create a new job
-// @route   POST /api/jobs
+// Create a new job
 exports.createJob = async (req, res) => {
   try {
     // req.user.id comes from our 'protect' middleware
@@ -14,30 +14,20 @@ exports.createJob = async (req, res) => {
   }
 };
 
-// @desc    Get all jobs
-// @route   GET /api/jobs
 exports.getJobs = async (req, res) => {
   try {
-    const { keyword, location, feature } = req.query;
+    const { keyword, location } = req.query;
     let query = {};
 
-    // 1. Keyword Search (Matches Job Title or Company)
     if (keyword) {
       query.$or = [
-        { title: { $regex: keyword, $options: 'i' } }, // 'i' makes it case-insensitive
+        { title: { $regex: keyword, $options: 'i' } },
         { company: { $regex: keyword, $options: 'i' } }
       ];
     }
 
-    // 2. Location Filter
     if (location) {
       query.location = { $regex: location, $options: 'i' };
-    }
-
-    // 3. Accessibility Feature Filter
-    // This checks if the array 'accessibilityFeatures' contains the specific feature
-    if (feature) {
-      query.accessibilityFeatures = { $in: [feature] };
     }
 
     const jobs = await Job.find(query).sort('-createdAt');
@@ -47,8 +37,7 @@ exports.getJobs = async (req, res) => {
   }
 };
 
-// @desc    Delete a job
-// @route   DELETE /api/jobs/:id
+// Delete a job
 exports.deleteJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -64,8 +53,7 @@ exports.deleteJob = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// @desc    Update a job
-// @route   PUT /api/jobs/:id
+// Update a job
 exports.updateJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -93,8 +81,7 @@ exports.updateJob = async (req, res) => {
   }
 };
 
-// @desc    Apply for a job
-// @route   POST /api/jobs/:id/apply
+// Apply for a job
 exports.applyToJob = async (req, res) => {
   try {
     const jobId = req.params.id;
@@ -117,8 +104,7 @@ exports.applyToJob = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// @desc    Get all applicants for a specific job
-// @route   GET /api/jobs/:id/applicants
+// Get all applicants for a specific job
 exports.getJobApplicants = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -140,44 +126,36 @@ exports.getJobApplicants = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// @desc    Review/Update an application (Employer only)
-// @route   PUT /api/applications/:id/review
 exports.reviewApplication = async (req, res) => {
   try {
-    const { status, accommodationNotes } = req.body;
+    const { status } = req.body;
     
-    // 1. Find the application and "Populate" the job details to check the owner
-    const application = await Application.findById(req.params.id).populate('job');
+    const application = await Application.findById(req.params.id)
+      .populate('job')
+      .populate('candidate', 'fullName email');
 
     if (!application) {
       return res.status(404).json({ message: 'Application not found' });
     }
 
-    // 2. Security Check: Is the logged-in user the one who posted the job?
     if (application.job.postedBy.toString() !== req.user.id.toString()) {
       return res.status(401).json({ message: 'Not authorized to review this application' });
     }
 
-    // 3. Update the application
     application.status = status || application.status;
-    application.accommodationNotes = accommodationNotes || application.accommodationNotes;
-
+    await application.save();
     
-  // Notify the candidate if they are shortlisted
-  if (status === 'shortlisted') {
-    try {
-      await sendEmail({
-        email: application.candidate.email,
-        subject: 'Good News: You have been shortlisted!',
-        message: `Hello ${application.candidate.fullName}, your application for "${application.job.title}" has been shortlisted. The employer left these notes: ${accommodationNotes}`,
-      });
-    } catch (err) {
-      console.error("Email failed to send, but status was updated.");
+    if (status === 'shortlisted') {
+      try {
+        await sendEmail({
+          email: application.candidate.email,
+          subject: 'Good News: You have been shortlisted!',
+          message: `Hello ${application.candidate.fullName}, your application for "${application.job.title}" has been shortlisted.`,
+        });
+      } catch (err) {
+        console.error("Email failed to send, but status was updated.");
+      }
     }
-  }
-
-  res.json({ message: 'Application updated and candidate notified', application });
-  await application.save();
 
     res.json({ message: 'Application updated successfully', application });
   } catch (error) {

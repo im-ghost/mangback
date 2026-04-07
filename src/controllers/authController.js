@@ -1,7 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
-const axios = require('axios'); // For calling the Termii SMS API
 
 // @desc    Register a new user (Email/Password)
 exports.registerUser = async (req, res) => {
@@ -89,62 +88,22 @@ exports.deleteUser = async (req,res)=>{
     res.status(500).json({ message: error.message });
   }
 }
-exports.syncSupabaseUser = async (req, res) => {
-  const { email, fullName, avatarUrl, providerId } = req.body;
-
-  try {
-    // 1. Find the user by email
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      // 2. Create them if they are new
-      user = await User.create({
-        fullName,
-        email,
-        avatarUrl,
-        providerId, // e.g., their GitHub or Google ID
-        isVerified: true
-      });
-    }
-
-    // 3. Return a JWT so they can use your protected routes
-    res.status(200).json({
-      _id: user._id,
-      token: generateToken(user._id)
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-// @desc    Sync Supabase user with MongoDB
-// @route   POST /api/auth/sync
+// Consolidated sync function below handles all providers
 exports.syncUser = async (req, res) => {
-  const { email, fullName, googleId } = req.body;
+  const { email, fullName, googleId, avatarUrl, providerId } = req.body;
 
   try {
-    // Upsert: Find user by email or googleId, create if not found
     let user = await User.findOneAndUpdate(
-      { $or: [{ email }, { googleId }] },
-      { fullName, email, googleId, isVerified: true },
+      { $or: [{ email }, { googleId }, { providerId }] },
+      { fullName, email, googleId, avatarUrl, providerId, isVerified: true },
       { new: true, upsert: true }
     );
 
-    // Return your own JWT for your Express protected routes
     const token = generateToken(user._id);
     res.status(200).json({ user, token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
-const handleGithubLogin = async () => {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'github',
-    options: {
-      redirectTo: 'http://localhost:3000/dashboard', 
-    },
-  });
-
-  if (error) console.error("GitHub Login failed:", error.message);
 };
 exports.syncPhoneUser = async (req, res) => {
   const { phone, fullName } = req.body;
