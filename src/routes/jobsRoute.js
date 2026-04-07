@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createJob, getJobs, deleteJob,updateJob } = require('../controllers/jobController');
+const { createJob, getJobs, deleteJob,updateJob, applyToJob, getJobApplicants } = require('../controllers/jobController');
 const { protect } = require('../middlewares/authMiddleware');
 
 // Public route: Anyone can see the job list
@@ -10,5 +10,10 @@ router.get('/', getJobs);
 router.post('/', protect, createJob);
 router.delete('/:id', protect, deleteJob);
 router.put('/:id', protect, updateJob);
+// Candidate Route: Apply for a job
+router.post('/:id/apply', protect, applyToJob);
+
+// Employer Route: See who applied
+router.get('/:id/applicants', protect, getJobApplicants);
 
 module.exports = router;

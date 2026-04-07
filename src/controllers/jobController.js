@@ -68,3 +68,52 @@ exports.updateJob = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+const Application = require('../models/Application');
+
+// @desc    Apply for a job
+// @route   POST /api/jobs/:id/apply
+exports.applyToJob = async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const candidateId = req.user.id;
+
+    // 1. Check if the user already applied
+    const alreadyApplied = await Application.findOne({ job: jobId, candidate: candidateId });
+    if (alreadyApplied) {
+      return res.status(400).json({ message: 'You have already applied for this job' });
+    }
+
+    // 2. Create the application
+    const application = await Application.create({
+      job: jobId,
+      candidate: candidateId
+    });
+
+    res.status(201).json({ message: 'Application submitted successfully!', application });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+// @desc    Get all applicants for a specific job
+// @route   GET /api/jobs/:id/applicants
+exports.getJobApplicants = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // 1. Security Check: Only the owner of the job can see applicants
+    if (job.postedBy.toString() !== req.user.id.toString()) {
+      return res.status(401).json({ message: 'Not authorized to view these applicants' });
+    }
+
+    // 2. Fetch applications and "Populate" the candidate details (including the resume URL!)
+    const applications = await Application.find({ job: req.params.id })
+      .populate('candidate', 'fullName email resumeUrl phone') 
+      .sort('-createdAt');
+
+    res.json(applications);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
