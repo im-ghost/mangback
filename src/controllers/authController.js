@@ -89,54 +89,87 @@ exports.deleteUser = async (req,res)=>{
     res.status(500).json({ message: error.message });
   }
 }
-// @desc    Send OTP to Phone (Using Termii for Nigeria)
-/**exports.sendOTP = async (req, res) => {
-  const { phone } = req.body;
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+exports.syncSupabaseUser = async (req, res) => {
+  const { email, fullName, avatarUrl, providerId } = req.body;
 
   try {
-    // 1. Find or create user by phone
-    let user = await User.findOne({ phone });
-    if (!user) user = await User.create({ phone, fullName: "New User" });
+    // 1. Find the user by email
+    let user = await User.findOne({ email });
 
-    // 2. Save OTP and Expiry to DB
-    user.otp = { code: otpCode, expiresAt: Date.now() + 10 * 60 * 1000 }; // 10 mins
-    await user.save();
-
-    // 3. Trigger Termii API (Nigerian SMS Gateway)
-    await axios.post('https://api.ng.termii.com/api/sms/send', {
-      to: phone,
-      from: "N-ALERT",
-      sms: `Your JobApp verification code is: ${otpCode}`,
-      type: "plain",
-      channel: "dnd", // 'dnd' ensures it bypasses DND restrictions in Nigeria
-      api_key: process.env.TERMII_API_KEY,
-    });
-
-    res.status(200).json({ message: "OTP sent successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to send OTP" });
-  }
-};
-
-exports.verifyOTP = async (req, res) => {
-  const { phone, code } = req.body;
-
-  try {
-    const user = await User.findOne({ phone });
-    if (!user || user.otp.code !== code || user.otp.expiresAt < Date.now()) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
+    if (!user) {
+      // 2. Create them if they are new
+      user = await User.create({
+        fullName,
+        email,
+        avatarUrl,
+        providerId, // e.g., their GitHub or Google ID
+        isVerified: true
+      });
     }
 
-    user.isVerified = true;
-    user.otp.code = undefined; // Clear code after use
-    await user.save();
-
-    res.json({
+    // 3. Return a JWT so they can use your protected routes
+    res.status(200).json({
       _id: user._id,
-      token: generateToken(user._id),
+      token: generateToken(user._id)
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};**/
+};
+// @desc    Sync Supabase user with MongoDB
+// @route   POST /api/auth/sync
+exports.syncUser = async (req, res) => {
+  const { email, fullName, googleId } = req.body;
+
+  try {
+    // Upsert: Find user by email or googleId, create if not found
+    let user = await User.findOneAndUpdate(
+      { $or: [{ email }, { googleId }] },
+      { fullName, email, googleId, isVerified: true },
+      { new: true, upsert: true }
+    );
+
+    // Return your own JWT for your Express protected routes
+    const token = generateToken(user._id);
+    res.status(200).json({ user, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+const handleGithubLogin = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: 'http://localhost:3000/dashboard', 
+    },
+  });
+
+  if (error) console.error("GitHub Login failed:", error.message);
+};
+exports.syncPhoneUser = async (req, res) => {
+  const { phone, fullName } = req.body;
+
+  try {
+    let user = await User.findOneAndUpdate(
+      { phone },
+      { fullName, phone, isVerified: true },
+      { new: true, upsert: true }
+    );
+
+    const token = generateToken(user._id);
+    res.status(200).json({ user, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+// controllers/authController.js
+exports.verifyEmployer = async (req, res) => {
+  try {
+    const { userId, status } = req.body;
+    // Security: You'd typically add an isAdmin middleware here
+    const user = await User.findByIdAndUpdate(userId, { verificationStatus: status }, { new: true });
+    res.json({ message: `Employer status updated to ${status}`, user });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+};

@@ -12,7 +12,13 @@ const jobSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', // Links this job to the Employer who created it
     required: true 
-  }
+  },
+  // Add to jobSchema
+field: {
+  type: String,
+  required: true,
+  enum: ['Legal Services', 'Information Technology', 'Healthcare', 'Education', 'Finance', 'Engineering', 'Public Sector', 'Others']
+},
 }, { timestamps: true });
 
 module.exports = mongoose.model('Job', jobSchema);

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createJob, getJobs, deleteJob,updateJob, applyToJob, getJobApplicants, reviewApplication } = require('../controllers/jobController');
+const { createJob, getJobs, deleteJob,updateJob, applyToJob, getJobApplicants, reviewApplication, getPersonalizedFeed } = require('../controllers/jobController');
 const { protect } = require('../middlewares/authMiddleware');
 
 // Public route: Anyone can see the job list
@@ -15,5 +15,7 @@ router.post('/:id/apply', protect, applyToJob);
 router.put('/applications/:id/review', protect, reviewApplication);
 // Employer Route: See who applied
 router.get('/:id/applicants', protect, getJobApplicants);
+// This is the "Home" or "Dashboard" route
+router.get('/feed', protect, getPersonalizedFeed);
 
 module.exports = router;

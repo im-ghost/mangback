@@ -18,7 +18,20 @@ const userSchema = new mongoose.Schema({
     code: String,
     expiresAt: Date
   },
-  
+  // Add these to your existing userSchema
+verificationStatus: {
+  type: String,
+  enum: ['unverified', 'pending', 'verified', 'rejected'],
+  default: 'unverified'
+},
+cacDocumentUrl: { type: String }, // Link to their CAC PDF on Supabase
+isInclusiveCertified: { type: Boolean, default: false }
+  // Add to userSchema
+,field: {
+  type: String,
+  required: true,
+  enum: ['Legal Services', 'Information Technology', 'Healthcare', 'Education', 'Finance', 'Engineering', 'Public Sector', 'Others']
+},
   role: { type: String, enum: ['candidate', 'employer'], default: 'candidate' }
 }, { timestamps: true });
 

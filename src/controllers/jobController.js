@@ -16,8 +16,30 @@ exports.createJob = async (req, res) => {
 // @route   GET /api/jobs
 exports.getJobs = async (req, res) => {
   try {
-    const jobs = await Job.find().populate('postedBy', 'fullName company');
-    res.json(jobs);
+    const { keyword, location, feature } = req.query;
+    let query = {};
+
+    // 1. Keyword Search (Matches Job Title or Company)
+    if (keyword) {
+      query.$or = [
+        { title: { $regex: keyword, $options: 'i' } }, // 'i' makes it case-insensitive
+        { company: { $regex: keyword, $options: 'i' } }
+      ];
+    }
+
+    // 2. Location Filter
+    if (location) {
+      query.location = { $regex: location, $options: 'i' };
+    }
+
+    // 3. Accessibility Feature Filter
+    // This checks if the array 'accessibilityFeatures' contains the specific feature
+    if (feature) {
+      query.accessibilityFeatures = { $in: [feature] };
+    }
+
+    const jobs = await Job.find(query).sort('-createdAt');
+    res.status(200).json(jobs);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -144,5 +166,79 @@ exports.reviewApplication = async (req, res) => {
     res.json({ message: 'Application updated successfully', application });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+const sendEmail = require('../utils/sendEmail');
+
+exports.reviewApplication = async (req, res) => {
+  // ... existing logic to find and update application ...
+
+  // Notify the candidate if they are shortlisted
+  if (status === 'shortlisted') {
+    try {
+      await sendEmail({
+        email: application.candidate.email,
+        subject: 'Good News: You have been shortlisted!',
+        message: `Hello ${application.candidate.fullName}, your application for "${application.job.title}" has been shortlisted. The employer left these notes: ${accommodationNotes}`,
+      });
+    } catch (err) {
+      console.error("Email failed to send, but status was updated.");
+    }
+  }
+
+  res.json({ message: 'Application updated and candidate notified', application });
+};
+exports.getPersonalizedFeed = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    if (user.role === 'candidate') {
+      // 1. CANDIDATE FEED: 
+      // Show jobs matching their field AND prioritized by accessibility match
+      const jobs = await Job.find({ field: user.field })
+        .sort('-createdAt')
+        .limit(20);
+
+      // (Optional) Re-use the matching logic we built earlier to sort by inclusion score
+      const personalizedJobs = jobs.map(job => {
+        let matchCount = 0;
+        user.accommodationNeeds.forEach(need => {
+          if (job.accessibilityFeatures.includes(need)) matchCount++;
+        });
+        const matchPercentage = user.accommodationNeeds.length > 0 
+          ? (matchCount / user.accommodationNeeds.length) * 100 : 0;
+        return { ...job._doc, matchPercentage };
+      });
+
+      return res.json({
+        type: 'Candidate Feed',
+        message: `Showing latest jobs in ${user.field}`,
+        data: personalizedJobs.sort((a, b) => b.matchPercentage - a.matchPercentage)
+      });
+    }
+
+    if (user.role === 'employer') {
+      // 2. EMPLOYER FEED (Dashboard):
+      // Show their active listings, total applicant count, and recent notifications
+      const myJobs = await Job.find({ postedBy: userId }).sort('-createdAt');
+      
+      // Get count of pending applications across all their jobs
+      const applications = await Application.find({ 
+        job: { $in: myJobs.map(j => j._id) },
+        status: 'pending'
+      }).populate('candidate', 'fullName field');
+
+      return res.json({
+        type: 'Employer Dashboard',
+        message: `Welcome back, ${user.fullName}`,
+        activeListings: myJobs.length,
+        pendingApplications: applications.length,
+        recentApplicants: applications.slice(0, 5), // Show top 5 newest
+        data: myJobs
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
